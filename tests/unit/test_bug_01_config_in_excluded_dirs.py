@@ -1,6 +1,6 @@
 """
 Test to demonstrate Bug #1: Config files in excluded directories
-are incorrectly included with full content.
+are incorrectly included with full content - FIXED VERSION.
 """
 
 import pytest
@@ -35,29 +35,39 @@ class TestBug01ConfigInExcludedDirs:
         generator = SkeletonGenerator(root, config)
         output = generator.generate()
 
+        # Split output into sections
+        full_content_section = (
+            output.split("<full-content>")[1].split("</full-content>")[0]
+            if "<full-content>" in output
+            else ""
+        )
+        skeleton_section = (
+            output.split("<skeleton>")[1].split("</skeleton>")[0]
+            if "<skeleton>" in output
+            else ""
+        )
+
         # ASSERTIONS
         # Root config should be in full-content
         assert "<full-content>" in output
-        assert "tsconfig.json" in output
-        assert '"strict": true' in output  # Root config content
+        assert "tsconfig.json" in full_content_section
+        assert '"strict": true' in full_content_section  # Root config content
 
-        # node_modules config should NOT appear anywhere
-        assert (
-            '"lib": ["es2015"]' not in output
-        )  # node_modules content should NOT appear
+        # node_modules config content should NOT appear in full-content or skeleton
+        assert '"lib": ["es2015"]' not in full_content_section
+        assert '"lib": ["es2015"]' not in skeleton_section
 
         # Verify stats
         assert generator.stats["full_content"] == 1  # Only root tsconfig
         assert generator.stats["excluded"] >= 1  # At least the node_modules file
 
-        # The node_modules/typescript/tsconfig.json path should not appear in full-content section
-        assert (
-            "node_modules/typescript/tsconfig.json" not in output.split("<skeleton>")[0]
-        )
+        # The node_modules path should not appear in full-content section
+        assert "node_modules/typescript/tsconfig.json" not in full_content_section
 
     def test_config_file_in_venv_should_be_excluded(self, tmp_path):
         """
         Bug #1: pyproject.toml inside .venv should be EXCLUDED.
+        FIXED: Check for actual config content, not just directory names.
         """
         # Create structure
         root = tmp_path / "project"
@@ -80,13 +90,38 @@ class TestBug01ConfigInExcludedDirs:
         generator = SkeletonGenerator(root, config)
         output = generator.generate()
 
-        # ASSERTIONS
-        # Root config should be included
-        assert "myproject" in output  # Root config content
+        # Split output into sections for precise checking
+        full_content_section = (
+            output.split("<full-content>")[1].split("</full-content>")[0]
+            if "<full-content>" in output
+            else ""
+        )
+        skeleton_section = (
+            output.split("<skeleton>")[1].split("</skeleton>")[0]
+            if "<skeleton>" in output
+            else ""
+        )
 
-        # .venv config should NOT appear
-        assert "setuptools" not in output  # .venv content should NOT appear
-        assert "zip-safe" not in output
+        # ASSERTIONS
+        # Root config should be included in full-content
+        assert "myproject" in full_content_section  # Root config content
+
+        # .venv config CONTENT should NOT appear in full-content or skeleton sections
+        assert "[tool.setuptools]" not in full_content_section
+        assert "[tool.setuptools]" not in skeleton_section
+        assert "zip-safe = false" not in full_content_section
+        assert "zip-safe = false" not in skeleton_section
+
+        # It's OK if "setuptools" appears in the excluded section as a path
+        # But NOT in full-content or skeleton sections
+        if "setuptools" in full_content_section:
+            pytest.fail(
+                "'setuptools' config found in full-content section - should be excluded"
+            )
+        if "setuptools" in skeleton_section:
+            pytest.fail(
+                "'setuptools' config found in skeleton section - should be excluded"
+            )
 
         # Verify stats
         assert generator.stats["full_content"] == 1  # Only root pyproject
@@ -121,13 +156,27 @@ class TestBug01ConfigInExcludedDirs:
         generator = SkeletonGenerator(root, config)
         output = generator.generate()
 
+        # Split output into sections
+        full_content_section = (
+            output.split("<full-content>")[1].split("</full-content>")[0]
+            if "<full-content>" in output
+            else ""
+        )
+        skeleton_section = (
+            output.split("<skeleton>")[1].split("</skeleton>")[0]
+            if "<skeleton>" in output
+            else ""
+        )
+
         # ASSERTIONS
         # Root config should be included
-        assert '"name": "myapp"' in output
+        assert '"name": "myapp"' in full_content_section
 
-        # Build and dist configs should NOT appear
-        assert "build-artifact" not in output
-        assert "vendor-lib" not in output
+        # Build and dist config CONTENT should NOT appear
+        assert "build-artifact" not in full_content_section
+        assert "build-artifact" not in skeleton_section
+        assert "vendor-lib" not in full_content_section
+        assert "vendor-lib" not in skeleton_section
 
         # Verify stats
         assert generator.stats["full_content"] == 1  # Only root package.json
@@ -157,10 +206,16 @@ class TestBug01ConfigInExcludedDirs:
         generator = SkeletonGenerator(root, config)
         output = generator.generate()
 
+        full_content_section = (
+            output.split("<full-content>")[1].split("</full-content>")[0]
+            if "<full-content>" in output
+            else ""
+        )
+
         # ASSERTIONS
         # Both configs should be included
-        assert '"extends": "./tsconfig.base.json"' in output
-        assert '"module": "commonjs"' in output
+        assert '"extends": "./tsconfig.base.json"' in full_content_section
+        assert '"module": "commonjs"' in full_content_section
 
         # Verify stats
         assert generator.stats["full_content"] == 2  # Both tsconfig files
@@ -193,9 +248,15 @@ class TestBug01ConfigInExcludedDirs:
         generator = SkeletonGenerator(root, config)
         output = generator.generate()
 
+        # Split output into sections
+        full_content_section = (
+            output.split("<full-content>")[1].split("</full-content>")[0]
+            if "<full-content>" in output
+            else ""
+        )
+
         # ASSERTIONS
         # Token count should be low (only root config)
-        # If bug exists, token count would be high (5 * 200+ chars)
         total_tokens = generator.stats["total_tokens"]
 
         # With bug: ~1000+ tokens (5 large files)
@@ -207,3 +268,10 @@ class TestBug01ConfigInExcludedDirs:
         # Only root package.json should be in full content
         assert generator.stats["full_content"] == 1
         assert generator.stats["excluded"] >= 5  # All node_modules files
+
+        # Verify none of the node_modules content appears
+        for pkg in ["typescript", "@types/node", "react", "lodash", "axios"]:
+            # The package name might appear in paths, but not the large description
+            assert (
+                "x" * 100
+            ) not in full_content_section, f"Found {pkg} content in output"
