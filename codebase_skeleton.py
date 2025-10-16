@@ -57,6 +57,7 @@ class Config:
     exclude: Set[str] = field(default_factory=set)
     max_tokens: int = 50000
     show_deps: bool = False
+    show_excluded: bool = False  # NEW LINE: Show detailed excluded directories list
     output: Optional[str] = None
 
     # Smart defaults
@@ -112,8 +113,8 @@ class Config:
         "*.swo",
         ".pkl",
         ".parquet",
-        # NOTE: .gitignore and .dockerignore are NOT here
-        # They are in DEFAULT_FULL_PATTERNS and should be included
+        # NOTE: .gitignore and .dockerignore are deliberately NOT in this list
+        # They are config files in DEFAULT_FULL_PATTERNS and should be included
     }
 
     EXCLUDE_DIRS = {
@@ -801,7 +802,7 @@ class SkeletonGenerator:
                 p.match(pattern) for p in rel_path.parents
             ):
                 return True
-            if pattern in str(rel_path):
+            if "*" not in pattern and pattern in rel_path.parts:
                 return True
 
         # Check if in excluded directory name
