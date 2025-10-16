@@ -61,8 +61,8 @@ class TestIntegration:
         assert "<skeleton>" in output
         assert "app/main.py" in output
         assert "app/db.py" in output
-        assert "<excluded>" in output
-        assert "<directory path='tests' files='1'/>" in output
+        # Removed: assert "<excluded>" in output
+        # Removed: assert "<directory path='tests' files='1'/>" in output
 
     def test_e2e_javascript_project(self, temp_dir):
         """End-to-end: JavaScript/Node project."""
@@ -88,8 +88,7 @@ class TestIntegration:
         # Assert that node_modules content is NOT processed
         assert "// express code" not in output
 
-        # Assert that node_modules IS correctly reported as excluded
-        assert "<directory path='node_modules/express' files='1'/>" in output
+        # Assert that node_modules IS correctly excluded (check stats, not output)
         assert generator.stats["excluded"] > 0
 
     def test_e2e_mixed_project(self, temp_dir):
@@ -115,7 +114,7 @@ class TestIntegration:
         assert "<file path='package.json'" in output
         assert "<file path='src/main.py'" in output
         assert "<file path='src/index.js'" in output
-        assert "<directory path='tests' files='1'/>" in output
+        # Removed: assert "<directory path='tests' files='1'/>" in output
 
     def test_e2e_with_exclusions(self, temp_dir):
         """End-to-end: Project with tests and migrations excluded."""
@@ -135,9 +134,11 @@ class TestIntegration:
         output = generator.generate()
 
         assert "<file path='src/main.py'" in output
-        assert "<directory path='tests' files='1'/>" in output
-        assert "<directory path='migrations' files='1'/>" in output
-        assert "<directory path='data' files='1'/>" in output
+        # Removed: assert "<directory path='tests' files='1'/>" in output
+        # Removed: assert "<directory path='migrations' files='1'/>" in output
+        # Removed: assert "<directory path='data' files='1'/>" in output
+        # Instead, verify exclusions happened via stats
+        assert generator.stats["excluded"] >= 3
 
     def test_e2e_with_custom_includes(self, temp_dir):
         """End-to-end: Project with specific files for full content."""
@@ -176,7 +177,7 @@ class TestIntegration:
         assert "<skeleton>" not in output
         assert "<tree>" in output
         assert "<stats>" in output
-        assert "<excluded>" in output
+        # Removed: assert "<excluded>" in output
 
     def test_e2e_skeleton_mode_output(self, mock_codebase):
         """End-to-end: Skeleton mode produces expected output."""
@@ -192,9 +193,8 @@ class TestIntegration:
         assert "class Greeter:" in output
         assert "# [Implementation hidden]" in output
         assert 'print(f"Hello, {self.name}!")' not in output
-
-        assert "<excluded>" in output
-        assert "<directory path='tests' files='1'/>" in output
+        # Removed: assert "<excluded>" in output
+        # Removed: assert "<directory path='tests' files='1'/>" in output
 
     def test_e2e_token_count_accuracy(self, mock_codebase, mock_tiktoken_available):
         """End-to-end: Token counts are reasonable."""
@@ -286,3 +286,30 @@ class TestIntegration:
         expected_path = "level_0/level_1/level_2/level_3/level_4/level_5/level_6/level_7/level_8/level_9/deep_file.py"
         assert f"<file path='{expected_path}'" in output
         assert "deep_func" in output
+
+    def test_e2e_show_excluded_flag(self, temp_dir):
+        """End-to-end: show_excluded flag controls excluded section visibility."""
+        structure = {
+            "my_app": {
+                "src": {"main.py": "def run(): pass"},
+                "tests": {"test_main.py": "def test_run(): pass"},
+            }
+        }
+        project_root = temp_dir / "my_app"
+        create_project_structure(temp_dir, structure)
+
+        # Test 1: Default behavior (show_excluded=False)
+        config_default = Config()
+        generator_default = SkeletonGenerator(project_root, config_default)
+        output_default = generator_default.generate()
+
+        assert "<excluded>" not in output_default
+        assert generator_default.stats["excluded"] > 0  # Still tracks excluded files
+
+        # Test 2: With show_excluded=True
+        config_with_flag = Config(show_excluded=True)
+        generator_with_flag = SkeletonGenerator(project_root, config_with_flag)
+        output_with_flag = generator_with_flag.generate()
+
+        assert "<excluded>" in output_with_flag
+        assert "<directory path='tests' files='1'/>" in output_with_flag

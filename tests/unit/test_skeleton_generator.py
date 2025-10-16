@@ -81,8 +81,9 @@ class TestSkeletonGeneratorGenerate:
         assert "<skeleton>" in output
         assert "<file path='src/main.py'" in output
         assert "# [Implementation hidden]" in output
-        assert "<excluded>" in output
-        assert "<directory path='tests' files='1'/>" in output
+        # Removed: assert "<excluded>" in output
+        # Removed: assert "<directory path='tests' files='1'/>" in output
+        # Instead verify via stats
         assert generator.stats["full_content"] > 0
         assert generator.stats["skeleton"] > 0
         assert generator.stats["excluded"] > 0
@@ -97,7 +98,9 @@ class TestSkeletonGeneratorGenerate:
         assert "<skeleton>" not in output
         assert "<tree>" in output
         assert "<stats>" in output
-        assert "<excluded>" in output
+        # Removed: assert "<excluded>" in output
+        # Verify exclusions happened via stats instead
+        assert generator.stats["excluded"] > 0
 
     def test_generate_updates_stats_counters(self, mock_codebase, default_config):
         """Test that stats counters are updated correctly."""
@@ -152,3 +155,21 @@ class TestSkeletonGeneratorGenerate:
         captured = capsys.readouterr()
         assert "Warning: Could not read" in captured.err
         assert "main.py" in captured.err
+
+    def test_generate_show_excluded_flag(self, mock_codebase):
+        """Test that show_excluded flag controls excluded section visibility."""
+        # Test with show_excluded=False (default)
+        config_default = Config()
+        generator_default = SkeletonGenerator(mock_codebase, config_default)
+        output_default = generator_default.generate()
+
+        assert "<excluded>" not in output_default
+        assert generator_default.stats["excluded"] > 0
+
+        # Test with show_excluded=True
+        config_with_flag = Config(show_excluded=True)
+        generator_with_flag = SkeletonGenerator(mock_codebase, config_with_flag)
+        output_with_flag = generator_with_flag.generate()
+
+        assert "<excluded>" in output_with_flag
+        assert "<directory path='tests' files='1'/>" in output_with_flag

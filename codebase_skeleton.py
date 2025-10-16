@@ -938,8 +938,8 @@ class SkeletonGenerator:
                 output.append("</file>")
             output.append("\n</skeleton>\n")
 
-        # Excluded summary
-        if excluded_dirs:
+        # Excluded summary (optional, controlled by --show-excluded flag)
+        if excluded_dirs and self.config.show_excluded:
             output.append("<excluded>")
             for dir_path, count in sorted(excluded_dirs.items()):
                 output.append(f"<directory path='{dir_path}' files='{count}'/>")
