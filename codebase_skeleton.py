@@ -63,22 +63,16 @@ class Config:
     DEFAULT_FULL_PATTERNS = {
         "README.md",
         "package.json",
-        "pyproject.toml",
+        "requirements.txt",  # ← Added
         "setup.py",
         "setup.cfg",
-        "Cargo.toml",
-        "Cargo.lock",
-        "go.mod",
-        "go.sum",
+        "pyproject.toml",  # ← Added
         "tsconfig.json",
-        ".env.example",
         "docker-compose.yml",
         "Dockerfile",
-        "Makefile",
         ".gitignore",
         ".dockerignore",
         "config.yaml",
-        "requirements.txt",
     }
 
     DEFAULT_EXCLUDE_PATTERNS = {
@@ -865,18 +859,18 @@ class SkeletonGenerator:
             if not path.is_file():
                 continue
 
-            # Check if file should have full content FIRST (before exclusion)
-            # This allows config files like .gitignore to be included even if they match exclusion patterns
-            should_full = self.should_full_content(path)
-
-            # Only check exclusion if it's not a full-content file
-            if not should_full and self.should_exclude(path):
+            # Check exclusion FIRST - excluded directories are completely ignored
+            # regardless of file type or content
+            if self.should_exclude(path):
                 parent = path.parent.relative_to(self.root)
                 # Normalize path for output
                 parent_str = str(parent).replace("\\", "/")
                 excluded_dirs[parent_str] += 1
                 self.stats["excluded"] += 1
-                continue
+                continue  # Stop processing this file completely
+
+            # Now check if remaining files need full content
+            should_full = self.should_full_content(path)
 
             # Try to read the file
             try:
