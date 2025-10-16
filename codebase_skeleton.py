@@ -1000,12 +1000,19 @@ Install optional dependencies:
     parser.add_argument(
         "--exclude", type=str, default="", help="Comma-separated patterns to exclude"
     )
+
     parser.add_argument(
         "--max-tokens", type=int, default=50000, help="Maximum token budget"
     )
     parser.add_argument(
         "--show-deps", action="store_true", help="Show dependency graph (future)"
     )
+    parser.add_argument(
+        "--show-excluded",
+        action="store_true",
+        help="Include detailed excluded directories list in output (default: False)",
+    )
+
     parser.add_argument("--output", type=str, help="Output file (default: stdout)")
 
     args = parser.parse_args()
